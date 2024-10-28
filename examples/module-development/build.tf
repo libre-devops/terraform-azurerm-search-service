@@ -1,19 +1,29 @@
 module "rg" {
-  source = "registry.terraform.io/libre-devops/rg/azurerm"
+  source = "libre-devops/rg/azurerm"
 
-  rg_name  = "rg-${var.short}-${var.loc}-${var.env}-${random_string.entropy.result}"
+  rg_name  = "rg-${var.short}-${var.loc}-${var.env}-01"
   location = local.location
   tags     = local.tags
-
-  #  lock_level = "CanNotDelete" // Do not set this value to skip lock
 }
 
-module "dev" {
+module "search_service" {
   source = "../../"
 
-  rg_name  = module.rg.rg_name
-  location = module.rg.rg_location
-  tags     = module.rg.rg_tags
+  search_services = [
+    {
+      rg_name  = module.rg.rg_name
+      location = module.rg.rg_location
+      tags     = module.rg.rg_tags
 
-  name = "${var.name}-${random_string.entropy.result}"
+      name                          = "search-${var.short}-${var.loc}-${var.env}-01"
+      sku                           = "Basic" # Example SKU
+      allowed_ips                   = []
+      partition_count               = 1
+      public_network_access_enabled = true
+      replica_count                 = 1
+      semantic_search_sku           = null
+      identity_type                 = "SystemAssigned" # Example for SystemAssigned identity
+      identity_ids                  = []               # No identity IDs needed for SystemAssigned
+    }
+  ]
 }

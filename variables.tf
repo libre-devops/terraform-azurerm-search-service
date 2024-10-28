@@ -1,19 +1,21 @@
-variable "location" {
-  description = "The location for this resource to be put in"
-  type        = string
-}
-
-variable "name" {
-  type        = string
-  description = "The name of the VNet gateway"
-}
-
-variable "rg_name" {
-  description = "The name of the resource group, this module does not create a resource group, it is expecting the value of a resource group already exists"
-  type        = string
-}
-
-variable "tags" {
-  type        = map(string)
-  description = "A map of the tags to use on the resources that are deployed with this module."
+variable "search_services" {
+  description = "The search services to make"
+  type = list(object({
+    name                                     = string
+    rg_name                                  = string
+    location                                 = optional(string, "uksouth")
+    tags                                     = map(string)
+    sku                                      = string
+    allowed_ips                              = optional(list(string))
+    authentication_failure_mode              = optional(string, "http403")
+    customer_managed_key_enforcement_enabled = optional(bool)
+    hosting_mode                             = optional(string, "default")
+    identity_ids                             = optional(list(string))
+    identity_type                            = optional(string)
+    local_authentication_enabled             = optional(bool)
+    partition_count                          = optional(number)
+    public_network_access_enabled            = optional(bool)
+    replica_count                            = optional(number)
+    semantic_search_sku                      = optional(string)
+  }))
 }
