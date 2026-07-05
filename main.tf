@@ -1,41 +1,39 @@
+# Azure AI Search services keyed by name, with secure defaults: Entra-only auth (API keys off), no
+# public endpoint, and a system-assigned identity (so the service can pull from data sources such as
+# Storage or a Cognitive Services account with a managed identity). The resource group is passed by
+# id and parsed.
+locals {
+  rg                  = provider::azurerm::parse_resource_id(var.resource_group_id)
+  resource_group_name = local.rg.resource_group_name
+}
+
 resource "azurerm_search_service" "this" {
-  for_each                                 = { for instance in var.search_services : instance.name => instance }
-  location                                 = each.value.location
-  name                                     = each.value.name
-  resource_group_name                      = each.value.rg_name
-  sku                                      = lower(each.value.sku)
-  allowed_ips                              = try(each.value.allowed_ips, [])
-  authentication_failure_mode              = each.value.authentication_failure_mode
-  customer_managed_key_enforcement_enabled = each.value.customer_managed_key_enforcement_enabled
-  hosting_mode                             = each.value.hosting_mode
+  for_each = var.search_services
+
+  resource_group_name = local.resource_group_name
+  location            = var.location
+  tags                = var.tags
+
+  name = each.key
+  sku  = each.value.sku
+
   local_authentication_enabled             = each.value.local_authentication_enabled
-  partition_count                          = each.value.partition_count
+  authentication_failure_mode              = each.value.authentication_failure_mode
   public_network_access_enabled            = each.value.public_network_access_enabled
+  allowed_ips                              = each.value.allowed_ips
+  network_rule_bypass_option               = each.value.network_rule_bypass_option
+  partition_count                          = each.value.partition_count
   replica_count                            = each.value.replica_count
+  hosting_mode                             = each.value.hosting_mode
   semantic_search_sku                      = each.value.semantic_search_sku
-
-
-  dynamic "identity" {
-    for_each = each.value.identity_type == "SystemAssigned" ? [each.value.identity_type] : []
-    content {
-      type = each.value.identity_type
-    }
-  }
+  customer_managed_key_enforcement_enabled = each.value.customer_managed_key_enforcement_enabled
 
   dynamic "identity" {
-    for_each = each.value.identity_type == "SystemAssigned, UserAssigned" ? [each.value.identity_type] : []
-    content {
-      type         = each.value.identity_type
-      identity_ids = try(each.value.identity_ids, [])
-    }
-  }
+    for_each = each.value.identity != null ? [each.value.identity] : []
 
-
-  dynamic "identity" {
-    for_each = each.value.identity_type == "UserAssigned" ? [each.value.identity_type] : []
     content {
-      type         = each.value.identity_type
-      identity_ids = length(try(each.value.identity_ids, [])) > 0 ? each.value.identity_ids : []
+      type         = identity.value.type
+      identity_ids = identity.value.identity_ids
     }
   }
 }

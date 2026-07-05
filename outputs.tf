@@ -1,32 +1,62 @@
-output "search_service_identity_principal_ids" {
-  description = "The Principal IDs associated with the Managed Service Identities of all Search Service instances."
-  value       = [for search in azurerm_search_service.this : search.identity[0].principal_id]
+output "ids" {
+  description = "Map of service name to its resource id."
+  value       = { for k, v in azurerm_search_service.this : k => v.id }
 }
 
-output "search_service_identity_tenant_ids" {
-  description = "The Tenant IDs associated with the Managed Service Identities of all Search Service instances."
-  value       = [for search in azurerm_search_service.this : search.identity[0].tenant_id]
+output "ids_zipmap" {
+  description = "Map of service name to a { name, id } object, for passing where both are needed together."
+  value       = { for k, v in azurerm_search_service.this : k => { name = v.name, id = v.id } }
 }
 
-output "search_service_ids" {
-  description = "The IDs of all the Search Service instances."
-  value       = [for search in azurerm_search_service.this : search.id]
+output "names" {
+  description = "The service names."
+  value       = keys(azurerm_search_service.this)
 }
 
-output "search_service_primary_keys" {
-  description = "The Primary Keys used for Search Service Administration."
-  value       = [for search in azurerm_search_service.this : search.primary_key]
+output "endpoints" {
+  description = "Map of service name to its search endpoint URL."
+  value       = { for k, v in azurerm_search_service.this : k => "https://${v.name}.search.windows.net" }
 }
 
-output "search_service_query_keys" {
-  description = "The Query Keys of all Search Service instances."
-  value = [for search in azurerm_search_service.this : {
-    query_keys  = search.query_keys[*].key,
-    query_names = search.query_keys[*].name
-  }]
+output "identities" {
+  description = "Map of service name to its managed identity { principal_id, tenant_id } (principal_id is populated for system-assigned identities)."
+  value = {
+    for k, v in azurerm_search_service.this : k => try({
+      principal_id = v.identity[0].principal_id
+      tenant_id    = v.identity[0].tenant_id
+    }, null)
+  }
 }
 
-output "search_service_secondary_keys" {
-  description = "The Secondary Keys used for Search Service Administration."
-  value       = [for search in azurerm_search_service.this : search.secondary_key]
+output "primary_keys" {
+  description = "Map of service name to its primary admin key (empty when local_authentication_enabled is false)."
+  value       = { for k, v in azurerm_search_service.this : k => v.primary_key }
+  sensitive   = true
+}
+
+output "secondary_keys" {
+  description = "Map of service name to its secondary admin key (empty when local_authentication_enabled is false)."
+  value       = { for k, v in azurerm_search_service.this : k => v.secondary_key }
+  sensitive   = true
+}
+
+output "query_keys" {
+  description = "Map of service name to its query keys (list of { name, key }; empty when local_authentication_enabled is false)."
+  value       = { for k, v in azurerm_search_service.this : k => v.query_keys }
+  sensitive   = true
+}
+
+output "resource_group_name" {
+  description = "Resource group name parsed from resource_group_id."
+  value       = local.resource_group_name
+}
+
+output "subscription_id" {
+  description = "Subscription id parsed from resource_group_id."
+  value       = local.rg.subscription_id
+}
+
+output "tags" {
+  description = "The tags applied to the services."
+  value       = var.tags
 }
