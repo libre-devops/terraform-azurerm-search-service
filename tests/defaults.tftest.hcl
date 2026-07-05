@@ -82,3 +82,31 @@ run "rejects_invalid_semantic_sku" {
 
   expect_failures = [var.search_services]
 }
+
+# Shared private links are flattened to "<service>/<link>" and created against the service.
+run "creates_shared_private_link" {
+  command = plan
+
+  variables {
+    search_services = {
+      "srch-ldo-uks-tst-01" = {
+        shared_private_links = {
+          "to-storage" = {
+            subresource_name   = "blob"
+            target_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-01/providers/Microsoft.Storage/storageAccounts/saldouksts01"
+          }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = azurerm_search_shared_private_link_service.this["srch-ldo-uks-tst-01/to-storage"].subresource_name == "blob"
+    error_message = "The shared private link should target the blob subresource and be keyed as <service>/<link>."
+  }
+
+  assert {
+    condition     = length(azurerm_search_shared_private_link_service.this) == 1
+    error_message = "One shared private link should be created per nested map entry."
+  }
+}

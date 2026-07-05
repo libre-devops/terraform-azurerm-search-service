@@ -46,6 +46,16 @@ output "query_keys" {
   sensitive   = true
 }
 
+output "shared_private_link_ids" {
+  description = "Map of \"<service>/<link>\" to the shared private link resource id."
+  value       = { for k, v in azurerm_search_shared_private_link_service.this : k => v.id }
+}
+
+output "shared_private_link_statuses" {
+  description = "Map of \"<service>/<link>\" to the connection status (Pending until the target owner approves it)."
+  value       = { for k, v in azurerm_search_shared_private_link_service.this : k => v.status }
+}
+
 output "resource_group_name" {
   description = "Resource group name parsed from resource_group_id."
   value       = local.resource_group_name

@@ -30,3 +30,15 @@ check "prefer_entra_only_auth" {
     error_message = "A search service has local_authentication_enabled = true (admin and query API keys work). Prefer Entra ID / RBAC (local_authentication_enabled = false) and grant data-plane roles instead."
   }
 }
+
+# Azure AI Search only carries an SLA at 2+ replicas (query) or 3+ replicas (query and indexing).
+# Scoped to the production-tier SKUs so it does not nag small dev services on the default single replica.
+check "production_sku_has_query_sla" {
+  assert {
+    condition = alltrue([
+      for s in values(var.search_services) :
+      !contains(["standard2", "standard3", "storage_optimized_l1", "storage_optimized_l2"], s.sku) || s.replica_count >= 2
+    ])
+    error_message = "A production-tier search service has replica_count < 2, so it has no query SLA. Use at least 2 replicas for a read SLA, or 3 for a read-write SLA."
+  }
+}

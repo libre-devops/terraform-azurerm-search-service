@@ -36,10 +36,15 @@ defaults, all caller-overridable:
 - **System-assigned identity**, so the service can pull from data sources (a Storage account, a
   Cognitive Services account) with its managed identity rather than a key. This is the retrieval side
   of a RAG pattern that pairs with the `cognitive-account` module.
+- **Shared private links** per service: the service's *own* outbound private connections to data
+  sources. This is how private RAG actually works: the service reaches a **private** Storage account
+  to index it, or a **private** Azure OpenAI / cognitive account for integrated vectorization
+  (embeddings), or Key Vault / Cosmos / SQL, without any of them being public. Each link is created
+  pending the target owner's approval.
 
-Scale with `partition_count` / `replica_count`, enable semantic ranking with `semantic_search_sku`,
-and let trusted Azure services in with `network_rule_bypass_option = "AzureServices"`. The resource
-group is passed by id and parsed.
+Scale with `partition_count` / `replica_count` (a `check` warns when a production-tier SKU has no
+query SLA), enable semantic ranking with `semantic_search_sku`, and let trusted Azure services in with
+`network_rule_bypass_option = "AzureServices"`. The resource group is passed by id and parsed.
 
 ## Usage
 
@@ -69,8 +74,9 @@ role (for example `Search Index Data Reader` or `Search Service Contributor`), g
 
 - [`examples/minimal`](./examples/minimal) - a single basic service with the secure defaults.
 - [`examples/complete`](./examples/complete) - a service exercising the fuller surface: semantic
-  ranking, a scaled partition/replica count, a system-assigned identity, and the public endpoint
-  flagged on behind an `allowed_ips` allow-list with trusted-service bypass.
+  ranking, a system-assigned identity, the public endpoint flagged on behind an `allowed_ips`
+  allow-list with trusted-service bypass, and a shared private link to a Storage account so the
+  service can index that data privately.
 
 ## Developing
 

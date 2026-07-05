@@ -28,6 +28,7 @@ locals {
   location  = lookup(var.regions, var.loc, "uksouth")
   rg_name   = "rg-${var.short}-${var.loc}-${terraform.workspace}-002"
   srch_name = "srch-${var.short}-${var.loc}-${terraform.workspace}-002"
+  sa_name   = "st${var.short}${var.loc}${terraform.workspace}002"
 }
 
 module "tags" {
@@ -49,10 +50,25 @@ module "rg" {
   resource_groups = [{ name = local.rg_name, location = local.location, tags = module.tags.tags }]
 }
 
+# A private data source for the search service to index over a shared private link.
+module "storage" {
+  source  = "libre-devops/storage-account/azurerm"
+  version = "~> 4.0"
+
+  resource_group_id = module.rg.ids[local.rg_name]
+  location          = local.location
+  tags              = module.tags.tags
+
+  storage_accounts = {
+    (local.sa_name) = {}
+  }
+}
+
 # Complete call: one basic search service exercising the fuller surface. The public endpoint is
 # flagged on behind an allowed_ips allow-list (the module default is public OFF; the examples turn it
 # on so the behaviour is demonstrable), semantic ranking is on at the free tier, trusted Azure
-# services may bypass the firewall, and it carries a system-assigned identity for keyless data pulls.
+# services may bypass the firewall, it carries a system-assigned identity for keyless data pulls, and
+# it opens a shared private link to the storage account so it can index that data privately.
 module "search_service" {
   source = "../../"
 
@@ -71,6 +87,16 @@ module "search_service" {
       allowed_ips                   = ["203.0.113.0/24"]
 
       identity = { type = "SystemAssigned" }
+
+      # Outbound private connection to the storage account (created pending the account owner's
+      # approval), so the service indexes it without a public path. Swap the target for a private
+      # Azure OpenAI account (subresource_name = "openai_account") for private integrated vectorization.
+      shared_private_links = {
+        "to-storage-blob" = {
+          subresource_name   = "blob"
+          target_resource_id = module.storage.ids[local.sa_name]
+        }
+      }
     }
   }
 }
@@ -93,6 +119,7 @@ No providers.
 |------|--------|---------|
 | <a name="module_rg"></a> [rg](#module\_rg) | libre-devops/rg/azurerm | ~> 4.0 |
 | <a name="module_search_service"></a> [search\_service](#module\_search\_service) | ../../ | n/a |
+| <a name="module_storage"></a> [storage](#module\_storage) | libre-devops/storage-account/azurerm | ~> 4.0 |
 | <a name="module_tags"></a> [tags](#module\_tags) | libre-devops/tags/azurerm | ~> 4.0 |
 
 ## Resources
@@ -116,4 +143,5 @@ No resources.
 | <a name="output_endpoints"></a> [endpoints](#output\_endpoints) | Map of service name to its search endpoint URL. |
 | <a name="output_identities"></a> [identities](#output\_identities) | Map of service name to its managed identity principal/tenant ids. |
 | <a name="output_search_service_ids"></a> [search\_service\_ids](#output\_search\_service\_ids) | Map of service name to resource id. |
+| <a name="output_shared_private_link_statuses"></a> [shared\_private\_link\_statuses](#output\_shared\_private\_link\_statuses) | Map of "<service>/<link>" to its private connection status. |
 <!-- END_TF_DOCS -->

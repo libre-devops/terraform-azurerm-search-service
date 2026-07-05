@@ -22,6 +22,16 @@ variable "search_services" {
                                                 when local authentication is enabled).
       customer_managed_key_enforcement_enabled  Require all indexes / synonym maps to use a CMK.
       identity                                  Managed identity (SystemAssigned by default).
+      shared_private_links                      The service's outbound private connections to data
+                                                sources, keyed by connection name. Each has a
+                                                subresource_name (for example "blob" for a Storage
+                                                account, "openai_account" for an Azure OpenAI /
+                                                cognitive account, "vault" for Key Vault) and a
+                                                target_resource_id. This is how the service indexes
+                                                private data and reaches a private model for
+                                                integrated vectorization without a public path; the
+                                                connection is created pending the target owner's
+                                                approval.
   EOT
   type = map(object({
     sku                                      = optional(string, "basic")
@@ -40,6 +50,12 @@ variable "search_services" {
       type         = optional(string, "SystemAssigned")
       identity_ids = optional(list(string))
     }), {})
+
+    shared_private_links = optional(map(object({
+      subresource_name   = string
+      target_resource_id = string
+      request_message    = optional(string, "Managed by Terraform")
+    })), {})
   }))
   default = {}
 

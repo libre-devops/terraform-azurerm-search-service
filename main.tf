@@ -1,10 +1,26 @@
 # Azure AI Search services keyed by name, with secure defaults: Entra-only auth (API keys off), no
 # public endpoint, and a system-assigned identity (so the service can pull from data sources such as
-# Storage or a Cognitive Services account with a managed identity). The resource group is passed by
-# id and parsed.
+# Storage or a Cognitive Services account with a managed identity). Each service can also own a set of
+# shared private links: the service's own outbound private connections to data sources (a private
+# Storage account to index, a private Azure OpenAI / cognitive account for integrated vectorization, a
+# Key Vault, Cosmos, SQL), so private RAG works without any of them being public. The resource group
+# is passed by id and parsed.
 locals {
   rg                  = provider::azurerm::parse_resource_id(var.resource_group_id)
   resource_group_name = local.rg.resource_group_name
+
+  # Flatten each service's shared private links to "<service>/<link>" keys.
+  shared_private_links = merge([
+    for svc_name, s in var.search_services : {
+      for link_name, l in s.shared_private_links : "${svc_name}/${link_name}" => {
+        service_name       = svc_name
+        link_name          = link_name
+        subresource_name   = l.subresource_name
+        target_resource_id = l.target_resource_id
+        request_message    = l.request_message
+      }
+    }
+  ]...)
 }
 
 resource "azurerm_search_service" "this" {
@@ -36,4 +52,18 @@ resource "azurerm_search_service" "this" {
       identity_ids = identity.value.identity_ids
     }
   }
+}
+
+# Shared private links: the search service's outbound private connections to data sources. Each one
+# raises a private endpoint connection on the target (which the target owner then approves), so the
+# service can reach a private Storage account, a private Azure OpenAI / cognitive account, Key Vault,
+# Cosmos, or SQL without a public path.
+resource "azurerm_search_shared_private_link_service" "this" {
+  for_each = local.shared_private_links
+
+  name               = each.value.link_name
+  search_service_id  = azurerm_search_service.this[each.value.service_name].id
+  subresource_name   = each.value.subresource_name
+  target_resource_id = each.value.target_resource_id
+  request_message    = each.value.request_message
 }

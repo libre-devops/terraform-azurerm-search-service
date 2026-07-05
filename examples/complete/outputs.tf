@@ -12,3 +12,8 @@ output "identities" {
   description = "Map of service name to its managed identity principal/tenant ids."
   value       = module.search_service.identities
 }
+
+output "shared_private_link_statuses" {
+  description = "Map of \"<service>/<link>\" to its private connection status."
+  value       = module.search_service.shared_private_link_statuses
+}
